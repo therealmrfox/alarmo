@@ -258,6 +258,19 @@ class AlarmoCoordinator(DataUpdateCoordinator):
             self.store.async_delete_user(user_id)
             return
 
+        if ATTR_CODE in data:
+            # Do not allow creation of multiple users with same code, as we idenitify users by this code
+            user_with_code = self.async_authenticate_user(data[ATTR_CODE])
+            if user_id:
+                if const.ATTR_OLD_CODE not in data:
+                    return False
+                if not self.async_authenticate_user(data[const.ATTR_OLD_CODE], user_id):
+                    return False
+                if user_with_code and user_with_code[const.ATTR_USER_ID] != user_id:
+                    return False
+            elif user_with_code:
+                return False
+
         if ATTR_CODE in data and data[ATTR_CODE]:
             data[const.ATTR_CODE_FORMAT] = "number" if data[ATTR_CODE].isdigit() else "text"
             data[const.ATTR_CODE_LENGTH] = len(data[ATTR_CODE])
@@ -271,15 +284,8 @@ class AlarmoCoordinator(DataUpdateCoordinator):
             self.store.async_create_user(data)
         else:
             if ATTR_CODE in data:
-                if const.ATTR_OLD_CODE not in data:
-                    return False
-                elif not self.async_authenticate_user(data[const.ATTR_OLD_CODE], user_id):
-                    return False
-                else:
-                    del data[const.ATTR_OLD_CODE]
-                    self.store.async_update_user(user_id, data)
-            else:
-                self.store.async_update_user(user_id, data)
+                del data[const.ATTR_OLD_CODE]
+            self.store.async_update_user(user_id, data)
 
     def async_authenticate_user(self, code: str, user_id: str = None):
 
